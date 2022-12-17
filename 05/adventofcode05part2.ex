@@ -1,3 +1,5 @@
+# part2 : very simple, just removed the Enum.reverse in line 30
+
 inputFileName = "input.txt"
 stackLines = File.stream!(inputFileName)
 |> Enum.reduce_while([],fn x, acc ->
@@ -26,7 +28,7 @@ stacksOfCrates = File.stream!(inputFileName)
   from = String.to_integer(command["from"])-1
   to = String.to_integer(command["to"])-1
   fromStack = Enum.at(lastStacks,from) |> Enum.take(move) |> IO.inspect
-  List.update_at(lastStacks,from,&Enum.drop(&1,move)) |>  List.update_at(to, &(Enum.reverse(fromStack) ++ &1)) |> IO.inspect
+  List.update_at(lastStacks,from,&Enum.drop(&1,move)) |>  List.update_at(to, &(fromStack ++ &1)) |> IO.inspect
 end)
 
 IO.inspect(["final stack ",stacksOfCrates])
