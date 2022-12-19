@@ -1,26 +1,31 @@
-# match commande cd
-Regex.run(~r/^\$ cd (.+)/, "$ cd fdoif")
-# est-ce la commande pour remonter au directory supérieur
-".." =~ ~r/\.{2}/
+defmodule BuildDirTree do
 
-# match le nom de sous dir après un ls
-Regex.run(~r/^dir (.+)/, "dir jjgpvcqv")
+  def process_cd(device, dirlist) do
+    IO.inspect(["dirlist",dirlist])
+    command = IO.read(device, :line)
+    IO.puts(command)
+    cond do
+      command == :eof -> dirlist
 
-# match un nom de fichier et sa taille
-Regex.run(~r/^(\d+) (.+)/, "127603 gpcpgfh.gtw")
+      Regex.match?(~r/^\$ ls/, command) -> process_cd(device, dirlist)
 
+      Regex.match?(~r/^\$ cd \.\./, command) ->
+        IO.inspect(["cd ..", dirlist])
+        dirlist
+
+      a = Regex.named_captures(~r/^dir (?<dirname>.+)/, command) ->
+        IO.inspect(a)
+        newdirlist = Map.put(dirlist, a["dirname"], %{})
+        process_cd(device, newdirlist)
+
+      _a = Regex.named_captures(~r/^(?<filesize>\d+) (.+)/, command) -> process_cd(device, dirlist)
+
+      a = Regex.named_captures(~r/^\$ cd (?<dirname>.+)$/, command) ->
+        %{dirlist | a["dirname"] => process_cd(device, %{})}
+    end
+  end
+end
 
 inputFileName = "testdata.txt"
-File.stream!(inputFileName)
-  |> Enum.reduce(%{:size => 0, :subdirs => %{}},
-  fn line, tree ->
-    IO.puts(line)
-    cond do
-      a = Regex.named_captures(~r/^\$ cd (?<dirname>.+)$/, line) -> IO.inspect(a)
-      Regex.match?(~r/^\$ ls/, line) -> tree
-      a = Regex.named_captures(~r/^dir (?<dirname>.+)/, line) -> IO.inspect(a)
-      a = Regex.named_captures(~r/^(?<filesize>\d+) (.+)/, line) -> IO.inspect(a)
-      true -> IO.inspect("no match")
-    end
-    tree
-  end)
+{_s, f} = File.open(inputFileName)
+BuildDirTree.process_cd(f, %{"/" => %{}}) |> IO.inspect
