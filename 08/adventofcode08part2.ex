@@ -44,6 +44,7 @@ defmodule Matrix do
       end)
   end
 
+  
   def transpose(matrix) do
     Enum.zip_with(matrix, &(&1))
   end
