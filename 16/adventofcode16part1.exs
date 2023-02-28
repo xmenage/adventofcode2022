@@ -164,7 +164,7 @@ defmodule Main do
     parcours(updated_valve_map, next_valve, new_total , remaining_time-1, remaining_count)
   end
 
-  # this function calculates the shortest path distance from each valve to all other valves.
+  # this function calculates the shortest path distance from one valve to all other valves.
   def distances(valve_map, []) do
     valve_map
   end
@@ -197,13 +197,15 @@ defmodule Main do
     end )
   end
 
+  # creates a matrix (map of maps) for each valve, associates a map (vector) of valve containing distance from
+  # this valve to other valves, including to itself (with distance = 0)
   def distance_matrix(valve_map, start_valve) do
-    start_valve_distance_map = Main.distances(valve_map, [{start_valve, :racine}])
+    start_valve_distance_map = distances(valve_map, [{start_valve, :racine}])
     non_zero_flow_valves = list_non_zero_flow_valves(valve_map)
     non_zero_flow_valves
       |> Enum.reduce(%{start_valve => start_valve_distance_map},
         fn valve, distance_matrix ->
-          Map.put(distance_matrix,valve, Main.distances(valve_map, [{valve, :racine}]))
+          Map.put(distance_matrix,valve, distances(valve_map, [{valve, :racine}]))
         end)
   end
 
@@ -221,25 +223,32 @@ defmodule Main do
     end)
   end
 
+  # calculates the gain from going to another valve, taking into account the distance to reach it.
   def get_total_pressure_release(flow_rate,distance,remaining_time) do
-    (remaining_time - distance -1) * flow_rate
+    new_remaining_time = remaining_time - distance - 1
+    pressure_release = new_remaining_time * flow_rate
+    {pressure_release, new_remaining_time}
   end
 
+  # finds which is next valve to go that will bring the highest level of pressure release
   def get_next_highest_flow_to_visit(distance_matrix,valve,remaining_list, remaining_time) do
+    valve_map = distance_matrix[valve]
     remaining_list
     |> Enum.reduce({}, fn next_valve, acc ->
-      # reprendre ici, récupérer les infos de next_valve et calculer get_total_pressure_release
+      next_valve_props = valve_map[next_valve]
+      distance_to_next_valve = next_valve_props[:distance]
+      next_valve_flow_rate = next_valve_props["flow_rate"]
+      {next_valve_pressure_release, new_remaining_time} = get_total_pressure_release(next_valve_flow_rate, distance_to_next_valve, remaining_time)
       case acc do
-        {} -> {next_valve, get_time_visited(valve_map, next_valve)}
-        {acc_valve, acc_time_visited} ->
-          next_time_visited = get_time_visited(valve_map, next_valve)
-          if next_time_visited > acc_time_visited do
-            {next_valve, next_time_visited}
+        {} -> {next_valve, next_valve_pressure_release, new_remaining_time}
+        {acc_valve, acc_pressure_release, remaining_time } ->
+          if next_valve_pressure_release > acc_pressure_release do
+            {next_valve, next_valve_pressure_release, new_remaining_time}
           else
             acc
           end
       end
-    end) |> elem(0)
+    end)
   end
 
   def visit(distance_matrix, valve, remaining_list, current_total, remaining_time) when remaining_time <= 0 or length(remaining_list) == 0 do
@@ -248,10 +257,10 @@ defmodule Main do
   end
 
   def visit(distance_matrix, valve, remaining_list, current_total, remaining_time) do
-
+    {next_valve, pressure_release, new_remaining_time} = get_next_highest_flow_to_visit(distance_matrix, valve,remaining_list,remaining_time) |> IO.inspect(label: "visit next")
+    new_remaining_list = List.delete(remaining_list, next_valve)
+    visit(distance_matrix, next_valve, new_remaining_list, current_total + pressure_release, new_remaining_time)
   end
-
-
 
 end
 
@@ -263,7 +272,7 @@ time_left = 30
 Main.parcours(valve_map, "AA", 0, time_left, valves_count)
 IO.puts("calcul distances")
 
-
 distance_matrix = Main.distance_matrix(valve_map, "AA")
-
 Main.summary_distance_matrix(distance_matrix)
+non_zero_valves_list = Main.list_non_zero_flow_valves(valve_map)
+Main.visit(distance_matrix, "AA", non_zero_valves_list, 0, time_left)
