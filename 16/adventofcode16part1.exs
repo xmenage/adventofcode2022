@@ -1,3 +1,8 @@
+# Here is day 16 part 1.
+# Most of the code below is useless, I just keep it to remember all the attempts I made to find a smart algorithm
+# until I realized that was a travelling salesman problem, which only brute force will work
+# The only useful part is the all_permutations function and its few dependencies.
+
 defmodule Main do
   def parse_input(input_file_name) do
     File.stream!(input_file_name)
@@ -251,10 +256,12 @@ defmodule Main do
     end)
   end
 
-  def visit(distance_matrix, valve, remaining_list, current_total, remaining_time) when remaining_time <= 0 or length(remaining_list) == 0 do
+  def visit(distance_matrix, valve, remaining_list, current_total, remaining_time) when length(remaining_list) == 0 do
     # IO.inspect([valve, current_total, remaining_time])
     current_total
   end
+
+
 
   def visit(distance_matrix, valve, remaining_list, current_total, remaining_time) do
     {next_valve, pressure_release, new_remaining_time} = get_next_highest_flow_to_visit(distance_matrix, valve,remaining_list,remaining_time) |> IO.inspect(label: "visit next")
@@ -262,17 +269,43 @@ defmodule Main do
     visit(distance_matrix, next_valve, new_remaining_list, current_total + pressure_release, new_remaining_time)
   end
 
+  def all_permutations(distance_matrix, valve, remaining_list, path_list, remaining_time) when length(remaining_list) == 0 do
+    path_list |> IO.inspect(label: "path")
+    0
+  end
+
+  def all_permutations(distance_matrix, valve, remaining_list, path_list, remaining_time) when remaining_time < 0 do
+    # path_list |> IO.inspect(label: "path")
+    # current_total |> IO.inspect(label: "total")
+    0
+  end
+
+  def all_permutations(distance_matrix, valve, remaining_list, path_list, remaining_time) when length(remaining_list) > 0 do
+    if length(path_list) < 3 do
+      path_list |> IO.inspect(label: "path")
+    end
+    remaining_list |> Enum.reduce(0, fn next_valve, max_release ->
+        valve_map = distance_matrix[valve]
+        next_valve_props = valve_map[next_valve]
+        {next_valve_pressure_release, new_remaining_time} = get_total_pressure_release(next_valve_props["flow_rate"], next_valve_props[:distance], remaining_time)
+        new_max_release = next_valve_pressure_release + all_permutations(distance_matrix, next_valve, List.delete(remaining_list, next_valve), [next_valve | path_list], new_remaining_time)
+        max(max_release,new_max_release)
+    end)
+  end
+
+
 end
 
 
-input_file_name = "testdata.txt"
+input_file_name = "input.txt"
 valve_map = Main.parse_input(input_file_name) |> IO.inspect(label: "valve_map")
 valves_count = Enum.count(valve_map) |> IO.inspect(label: "valves_count")
 time_left = 30
-Main.parcours(valve_map, "AA", 0, time_left, valves_count)
+#Main.parcours(valve_map, "AA", 0, time_left, valves_count)
 IO.puts("calcul distances")
 
 distance_matrix = Main.distance_matrix(valve_map, "AA")
-Main.summary_distance_matrix(distance_matrix)
+#Main.summary_distance_matrix(distance_matrix)
 non_zero_valves_list = Main.list_non_zero_flow_valves(valve_map)
-Main.visit(distance_matrix, "AA", non_zero_valves_list, 0, time_left)
+#Main.visit(distance_matrix, "AA", non_zero_valves_list, 0, time_left)
+Main.all_permutations(distance_matrix,"AA", non_zero_valves_list, [], time_left)
