@@ -98,24 +98,42 @@ defmodule Main do
     {pressure_release, new_remaining_time}
   end
 
-  def all_permutations(distance_matrix, valve, remaining_list, path_list, remaining_time) when length(remaining_list) == 0 do
+  def get_valve_pressure_release(distance_matrix, valve, next_valve, remaining_time) do
+    valve_map = distance_matrix[valve]
+    next_valve_props = valve_map[next_valve]
+    get_total_pressure_release(next_valve_props["flow_rate"], next_valve_props[:distance], remaining_time)
+  end
+
+  # modify for part 2 in order to track the path of separate elephant. For this we replace the valve and remaining_time
+  # parameters with a list of t-uple [{valve1, remaining_time 1}, {valve2, remaining_time 2}]
+  # then we alternate using the first or second on each recursive call
+  def all_permutations(_, _, remaining_list) when length(remaining_list) == 0 do
     0
   end
 
-  def all_permutations(distance_matrix, valve, remaining_list, path_list, remaining_time) when remaining_time < 0 do
-    0
-  end
-
-  def all_permutations(distance_matrix, valve, remaining_list, path_list, remaining_time) when length(remaining_list) > 0 do
-    if length(path_list) < 3 do
-      path_list |> IO.inspect(label: "path")
+  def all_permutations(distance_matrix, [{valve, remaining_time}, other_one], remaining_list) when length(remaining_list) > 0 do
+    case length(remaining_list) do
+      14 -> IO.puts(valve)
+      13 -> IO.puts(" " <> valve)
+      a -> :ok
     end
     remaining_list |> Enum.reduce(0, fn next_valve, max_release ->
-        valve_map = distance_matrix[valve]
-        next_valve_props = valve_map[next_valve]
-        {next_valve_pressure_release, new_remaining_time} = get_total_pressure_release(next_valve_props["flow_rate"], next_valve_props[:distance], remaining_time)
-        new_max_release = next_valve_pressure_release + all_permutations(distance_matrix, next_valve, List.delete(remaining_list, next_valve), [next_valve | path_list], new_remaining_time)
-        max(max_release,new_max_release)
+        {next_valve_pressure_release, new_remaining_time} = get_valve_pressure_release(distance_matrix, valve, next_valve, remaining_time)
+        if new_remaining_time > 0 do
+          new_max_release = next_valve_pressure_release + all_permutations(distance_matrix,
+            [other_one, {next_valve, new_remaining_time}] , List.delete(remaining_list, next_valve))
+          max(max_release,new_max_release)
+        else
+          {other_valve, other_remaining_time} = other_one
+          {next_valve_pressure_release, new_remaining_time} = get_valve_pressure_release(distance_matrix, other_valve, next_valve, other_remaining_time)
+          if other_remaining_time > 0 do
+            new_max_release = next_valve_pressure_release + all_permutations(distance_matrix,
+              [{next_valve, new_remaining_time}, {"AA", -1}] , List.delete(remaining_list, next_valve))
+            max(max_release,new_max_release)
+          else
+            max_release
+          end
+        end
     end)
   end
 
@@ -126,9 +144,10 @@ end
 input_file_name = "input.txt"
 valve_map = Main.parse_input(input_file_name) |> IO.inspect(label: "valve_map")
 valves_count = Enum.count(valve_map) |> IO.inspect(label: "valves_count")
-time_left = 30
+time_left = 26
 IO.puts("calcul distances")
 
 distance_matrix = Main.distance_matrix(valve_map, "AA")
 non_zero_valves_list = Main.list_non_zero_flow_valves(valve_map)
-#Main.all_permutations(distance_matrix,"AA", non_zero_valves_list, [], time_left)
+# The following takes a long time, about 15 minutes to complete
+Main.all_permutations(distance_matrix,[{"AA", time_left}, {"AA", time_left}], non_zero_valves_list)
